@@ -9,7 +9,7 @@ COPY . .
 
 # Rend gradlew exécutable et lance la task de production
 RUN chmod +x gradlew \
- && ./gradlew jsBrowserProductionWebpack --no-daemon
+ && ./gradlew wasmJsBrowserDevelopmentRun -t --no-daemon
 
 # Étape 2 : serveur statique Nginx
 FROM nginx:alpine
