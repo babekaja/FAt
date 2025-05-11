@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "588498628858",
+    "project_id": "fataapp-5f407",
+    "storage_bucket": "fataapp-5f407.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:588498628858:android:b02bfbb550188a48fa5943",
+        "android_client_info": {
+          "package_name": "com.babe.fata"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBiZf_stOidGo4srtdsiTcdz2CQfeOau6c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
