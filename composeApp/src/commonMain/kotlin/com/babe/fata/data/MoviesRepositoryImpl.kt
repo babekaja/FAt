@@ -14,7 +14,11 @@ import kotlinx.serialization.json.Json
 class MoviesRepositoryImpl(
     private val client: HttpClient
 ) : MoviesRepository {
-    private val json = Json { ignoreUnknownKeys = true }
+    
+    private val json = Json { 
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+    }
 
     override suspend fun getPopular(page: Int): MovieResponse =
         fetchMovies(MovieCategory.POPULAR, page)
@@ -34,84 +38,89 @@ class MoviesRepositoryImpl(
     override suspend fun searchMovies(query: String, page: Int): MovieResponse =
         fetchSearchResults(query, page)
 
-    private suspend fun fetchMovies(category: MovieCategory, page: Int): MovieResponse {
-        val url = "${ApiConfig.baseUrl}/movie/${category.path}"
-        val raw: String = client.get(url) {
-            contentType(ContentType.Application.Json)
-            parameter("api_key", ApiConfig.apiKey)
-            parameter("page", page)
-            parameter("language", "fr-FR")   // ← demande le français
-        }.bodyAsText()
-        return json.decodeFromString(raw)
-    }
-
-    private suspend fun fetchSearchResults(query: String, page: Int): MovieResponse {
-        val url = "${ApiConfig.baseUrl}/search/movie"
-        val raw: String = client.get(url) {
-            contentType(ContentType.Application.Json)
-            parameter("api_key", ApiConfig.apiKey)
-            parameter("query", query)
-            parameter("page", page)
-            parameter("language", "fr-FR")   // ← idem
-        }.bodyAsText()
-        return json.decodeFromString(raw)
-    }
-
-    // MoviesRepositoryImpl.kt
     override suspend fun getByGenre(genreId: Int, page: Int): MovieResponse {
         val url = "${ApiConfig.baseUrl}/discover/movie"
-        val raw: String = client.get(url) {
-            contentType(ContentType.Application.Json)
+        return executeRequest(url) {
             parameter("api_key", ApiConfig.apiKey)
             parameter("with_genres", genreId)
             parameter("page", page)
-        }.bodyAsText()
-        return json.decodeFromString(raw)
+            parameter("language", ApiConfig.language)
+        }
     }
-
 
     override suspend fun getMovieDetails(id: Int, language: String): Movie {
         val url = "${ApiConfig.baseUrl}/movie/$id"
-        val raw: String = client.get(url) {
-            contentType(ContentType.Application.Json)
+        return executeRequest(url) {
             parameter("api_key", ApiConfig.apiKey)
             parameter("language", language)
-        }.bodyAsText()
-        return json.decodeFromString(raw)
+        }
     }
-
 
     override suspend fun getSimilarMovies(id: Int, page: Int): MovieResponse {
         val url = "${ApiConfig.baseUrl}/movie/$id/similar"
-        val raw: String = client.get(url) {
-            contentType(ContentType.Application.Json)
+        return executeRequest(url) {
             parameter("api_key", ApiConfig.apiKey)
-            parameter("language", "fr-FR")
+            parameter("language", ApiConfig.language)
             parameter("page", page)
-        }.bodyAsText()
-        return json.decodeFromString(raw)
+        }
     }
 
     override suspend fun getMovieCredits(id: Int, language: String): CreditsResponse {
         val url = "${ApiConfig.baseUrl}/movie/$id/credits"
-        val raw: String = client.get(url) {
-            contentType(ContentType.Application.Json)
+        return executeRequest(url) {
             parameter("api_key", ApiConfig.apiKey)
             parameter("language", language)
-        }.bodyAsText()
-        return json.decodeFromString(raw)
+        }
     }
 
     override suspend fun getCastDetails(castId: Int, language: String): CastDetails {
         val url = "${ApiConfig.baseUrl}/person/$castId"
-        val rawJson: String = client.get(url) {
-            contentType(ContentType.Application.Json)
+        return executeRequest(url) {
             parameter("api_key", ApiConfig.apiKey)
             parameter("language", language)
-        }.bodyAsText()
-        // On précise le type générique pour que Kotlinx le désérialise bien en CastDetails
-        return json.decodeFromString<CastDetails>(rawJson)
+        }
     }
 
+    private suspend fun fetchMovies(category: MovieCategory, page: Int): MovieResponse {
+        val url = "${ApiConfig.baseUrl}/movie/${category.path}"
+        return executeRequest(url) {
+            parameter("api_key", ApiConfig.apiKey)
+            parameter("page", page)
+            parameter("language", ApiConfig.language)
+        }
+    }
 
+    private suspend fun fetchSearchResults(query: String, page: Int): MovieResponse {
+        val url = "${ApiConfig.baseUrl}/search/movie"
+        return executeRequest(url) {
+            parameter("api_key", ApiConfig.apiKey)
+            parameter("query", query)
+            parameter("page", page)
+            parameter("language", ApiConfig.language)
+        }
+    }
+
+    /**
+     * Méthode générique pour exécuter les requêtes avec gestion d'erreur
+     */
+    private suspend inline fun <reified T> executeRequest(
+        url: String,
+        crossinline block: HttpRequestBuilder.() -> Unit
+    ): T {
+        return try {
+            val response: String = client.get(url) {
+                contentType(ContentType.Application.Json)
+                block()
+            }.bodyAsText()
+            
+            json.decodeFromString<T>(response)
+        } catch (e: Exception) {
+            throw NetworkException("Erreur réseau: ${e.message}", e)
+        }
+    }
 }
+
+/**
+ * Exception personnalisée pour les erreurs réseau
+ */
+class NetworkException(message: String, cause: Throwable? = null) : Exception(message, cause)

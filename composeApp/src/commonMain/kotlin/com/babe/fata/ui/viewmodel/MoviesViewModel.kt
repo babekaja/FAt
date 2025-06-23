@@ -1,27 +1,19 @@
 package com.babe.fata.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.babe.fata.data.MovieCategory
-import com.babe.fata.domaine.usecase.GetCastDetailsUseCase
-import com.babe.fata.domaine.usecase.GetMovieCreditsUseCase
-import com.babe.fata.domaine.usecase.GetMovieDetailsUseCase
-import com.babe.fata.domaine.usecase.GetMoviesByGenreUseCase
-import com.babe.fata.domaine.usecase.GetNowPlayingMoviesUseCase
-import com.babe.fata.domaine.usecase.GetPopularMoviesUseCase
-import com.babe.fata.domaine.usecase.GetSimilarMoviesUseCase
-import com.babe.fata.domaine.usecase.GetTopRatedMoviesUseCase
-import com.babe.fata.domaine.usecase.GetUpcomingMoviesUseCase
-import com.babe.fata.domaine.usecase.SearchMoviesUseCase
-import com.babe.fata.model.CastDetails
-import com.babe.fata.model.CastMember
-import com.babe.fata.model.Movie
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
+import com.babe.fata.domaine.usecase.*
+import com.babe.fata.model.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 
 class MoviesViewModel(
     private val getPopular: GetPopularMoviesUseCase,
@@ -34,11 +26,13 @@ class MoviesViewModel(
     private val getSimilar: GetSimilarMoviesUseCase,
     private val getMovieCredits: GetMovieCreditsUseCase,
     private val getCastDetails: GetCastDetailsUseCase
-
 ) : ViewModel() {
 
+    // UI State avec StateFlow pour une meilleure gestion d'état
+    private val _uiState = MutableStateFlow(MoviesUiState())
+    val uiState: StateFlow<MoviesUiState> = _uiState.asStateFlow()
 
-
+    // États individuels pour compatibilité avec le code existant
     var movieDetail by mutableStateOf<Movie?>(null)
         private set
     var popularMovies by mutableStateOf<List<Movie>>(emptyList())
@@ -49,71 +43,59 @@ class MoviesViewModel(
         private set
     var topRatedMovies by mutableStateOf<List<Movie>>(emptyList())
         private set
-
-    // Résultats de recherche
     var searchResults by mutableStateOf<List<Movie>>(emptyList())
         private set
-
-    // Films par genre
     var genreMovies by mutableStateOf<List<Movie>>(emptyList())
         private set
-
     var isLoading by mutableStateOf(false)
         private set
-
     var similarMovies by mutableStateOf<List<Movie>>(emptyList())
         private set
-
     var movieCredits by mutableStateOf<List<CastMember>>(emptyList())
         private set
-
     var selectedCast by mutableStateOf<CastMember?>(null)
         private set
-
     var castDetails by mutableStateOf<CastDetails?>(null)
         private set
 
-    // Scope dédié pour les chargements
-    private val scope = CoroutineScope(Dispatchers.Default)
+    // Gestion d'erreur améliorée
+    private val _errorState = MutableStateFlow<String?>(null)
+    val errorState: StateFlow<String?> = _errorState.asStateFlow()
 
     /**
-     * Charge toutes les catégories en parallèle et gère le loader global.
+     * Charge toutes les catégories en parallèle avec gestion d'erreur améliorée
      */
     fun loadAll(page: Int = 1) {
-        isLoading = true
-        scope.launch {
-            val popDeferred = async { getPopular(page).results }
-            val nowDeferred = async { getNowPlaying(page).results }
-            val upcomingDeferred = async { getUpcoming(page).results }
-            val topDeferred = async { getTopRated(page).results }
+        viewModelScope.launch {
+            isLoading = true
+            _errorState.value = null
+            
+            try {
+                val deferredResults = listOf(
+                    async { getPopular(page) },
+                    async { getNowPlaying(page) },
+                    async { getUpcoming(page) },
+                    async { getTopRated(page) }
+                )
 
-            popularMovies = popDeferred.await()
-            nowPlayingMovies = nowDeferred.await()
-            upcomingMovies = upcomingDeferred.await()
-            topRatedMovies = topDeferred.await()
+                val results = deferredResults.awaitAll()
+                
+                popularMovies = results[0].results
+                nowPlayingMovies = results[1].results
+                upcomingMovies = results[2].results
+                topRatedMovies = results[3].results
 
-            isLoading = false
-        }
-    }
-
-    /**
-     * Charge une seule catégorie selon l'enum et gère le loader.
-     */
-    fun loadCategory(category: MovieCategory, page: Int = 1) {
-        isLoading = true
-        scope.launch {
-            when (category) {
-                MovieCategory.POPULAR -> popularMovies = getPopular(page).results
-                MovieCategory.NOW_PLAYING -> nowPlayingMovies = getNowPlaying(page).results
-                MovieCategory.UPCOMING -> upcomingMovies = getUpcoming(page).results
-                MovieCategory.TOP_RATED -> topRatedMovies = getTopRated(page).results
+                updateUiState()
+            } catch (e: Exception) {
+                handleError("Erreur lors du chargement des films", e)
+            } finally {
+                isLoading = false
             }
-            isLoading = false
         }
     }
 
     /**
-     * Met à jour la liste de résultats selon la requête de recherche.
+     * Recherche de films avec debouncing et gestion d'erreur
      */
     fun searchMovies(query: String, page: Int = 1) {
         if (query.isBlank()) {
@@ -121,39 +103,127 @@ class MoviesViewModel(
             return
         }
 
-        isLoading = true
-        scope.launch {
-            val response = searchMoviesUseCase(query, page)
-            searchResults = response.results
-            isLoading = false
+        viewModelScope.launch {
+            isLoading = true
+            _errorState.value = null
+            
+            try {
+                val response = searchMoviesUseCase(query, page)
+                searchResults = response.results
+            } catch (e: Exception) {
+                handleError("Erreur lors de la recherche", e)
+            } finally {
+                isLoading = false
+            }
         }
     }
 
     /**
-     * Charge une liste de films par genre.
-     */
-    fun loadByGenre(genreId: Int, page: Int = 1) {
-        isLoading = true
-        scope.launch {
-            genreMovies = getByGenre(genreId, page).results
-            isLoading = false
-        }
-    }
-
-    /**
-     * Récupère le détail d'un film et met à jour le state.
+     * Charge les détails d'un film avec cache
      */
     fun loadMovieDetail(id: Int, language: String = "fr-FR") {
-        isLoading = true
-        scope.launch {
-            val detail = getMovieDetails(id, language)
-            movieDetail = detail
-            isLoading = false
+        // Vérifier si le film est déjà en cache
+        if (movieDetail?.id == id) return
+
+        viewModelScope.launch {
+            isLoading = true
+            _errorState.value = null
+            
+            try {
+                val detail = getMovieDetails(id, language)
+                movieDetail = detail
+            } catch (e: Exception) {
+                handleError("Erreur lors du chargement des détails", e)
+            } finally {
+                isLoading = false
+            }
         }
     }
 
     /**
-     * Recherche localement un film par son ID dans les listes chargées.
+     * Charge les films similaires
+     */
+    fun loadSimilar(movieId: Int, page: Int = 1) {
+        viewModelScope.launch {
+            isLoading = true
+            _errorState.value = null
+            
+            try {
+                val response = getSimilar(movieId, page)
+                similarMovies = response.results
+            } catch (e: Exception) {
+                handleError("Erreur lors du chargement des films similaires", e)
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    /**
+     * Charge les crédits d'un film
+     */
+    fun loadMovieCredits(movieId: Int, language: String = "fr-FR") {
+        viewModelScope.launch {
+            isLoading = true
+            _errorState.value = null
+            
+            try {
+                val credits = getMovieCredits(movieId, language)
+                movieCredits = credits.cast
+            } catch (e: Exception) {
+                handleError("Erreur lors du chargement des crédits", e)
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    /**
+     * Charge les détails d'un acteur
+     */
+    fun loadCastDetails(castId: Int, language: String = "fr-FR") {
+        viewModelScope.launch {
+            isLoading = true
+            _errorState.value = null
+            
+            try {
+                castDetails = getCastDetails(castId, language)
+            } catch (e: Exception) {
+                handleError("Erreur lors du chargement des détails de l'acteur", e)
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    /**
+     * Charge les films par genre
+     */
+    fun loadByGenre(genreId: Int, page: Int = 1) {
+        viewModelScope.launch {
+            isLoading = true
+            _errorState.value = null
+            
+            try {
+                genreMovies = getByGenre(genreId, page).results
+            } catch (e: Exception) {
+                handleError("Erreur lors du chargement par genre", e)
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    /**
+     * Sélectionne un acteur
+     */
+    fun selectCast(cast: CastMember) {
+        selectedCast = cast
+        loadCastDetails(cast.id)
+    }
+
+    /**
+     * Recherche locale d'un film par ID
      */
     fun findById(id: Int): Movie? {
         return popularMovies
@@ -164,37 +234,44 @@ class MoviesViewModel(
             .firstOrNull { it.id == id }
     }
 
-
-    fun loadSimilar(movieId: Int, page: Int = 1) {
-        isLoading = true
-        scope.launch {
-            val response = getSimilar(movieId, page)
-            similarMovies = response.results
-            isLoading = false
-        }
+    /**
+     * Efface l'état d'erreur
+     */
+    fun clearError() {
+        _errorState.value = null
     }
 
-    fun loadMovieCredits(movieId: Int, language: String = "fr-FR") {
-        isLoading = true
-        scope.launch {
-            val credits = getMovieCredits(movieId, language)
-            movieCredits = credits.cast
-            isLoading = false
-        }
+    /**
+     * Gestion centralisée des erreurs
+     */
+    private fun handleError(message: String, exception: Exception) {
+        _errorState.value = message
+        // Log l'erreur pour le debugging
+        println("MoviesViewModel Error: $message - ${exception.message}")
     }
 
-    fun selectCast(cast: CastMember) {
-        selectedCast = cast
-        loadMovieCredits(cast.id)
+    /**
+     * Met à jour l'état UI global
+     */
+    private fun updateUiState() {
+        _uiState.value = _uiState.value.copy(
+            popularMovies = popularMovies,
+            nowPlayingMovies = nowPlayingMovies,
+            upcomingMovies = upcomingMovies,
+            topRatedMovies = topRatedMovies,
+            isLoading = isLoading
+        )
     }
-    fun loadCastDetails(castId: Int, language: String = "fr-FR") {
-        isLoading = true
-        scope.launch {
-            castDetails = getCastDetails(castId, language)
-            isLoading = false
-        }
-    }
-
-
-
 }
+
+/**
+ * État UI centralisé
+ */
+data class MoviesUiState(
+    val popularMovies: List<Movie> = emptyList(),
+    val nowPlayingMovies: List<Movie> = emptyList(),
+    val upcomingMovies: List<Movie> = emptyList(),
+    val topRatedMovies: List<Movie> = emptyList(),
+    val isLoading: Boolean = false,
+    val error: String? = null
+)

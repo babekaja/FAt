@@ -2,54 +2,58 @@ package com.babe.fata.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Netflix Brand Colors
-val NetflixRed         = Color(0xFFE50914)
-val NetflixDarkGray    = Color(0xFF221F1F)
-val NetflixLightGray   = Color(0xFF737373)
-val NetflixWhite       = Color(0xFFFFFFFF)
+// Netflix Brand Colors - Couleurs principales
+val NetflixRed = Color(0xFFE50914)
+val NetflixDarkGray = Color(0xFF221F1F)
+val NetflixLightGray = Color(0xFF737373)
+val NetflixWhite = Color(0xFFFFFFFF)
+val NetflixBlack = Color(0xFF000000)
 
-// Light Theme
-val primaryLight               = NetflixRed
-val onPrimaryLight             = NetflixWhite
-val primaryContainerLight      = NetflixRed.copy(alpha = 0.12f)
-val onPrimaryContainerLight    = NetflixRed
+// Couleurs supplémentaires pour une meilleure UX
+val NetflixDarkRed = Color(0xFFB20710)
+val NetflixMediumGray = Color(0xFF404040)
+val NetflixLightBackground = Color(0xFFF8F8F8)
 
-val secondaryLight             = NetflixLightGray
-val onSecondaryLight           = NetflixWhite
-val secondaryContainerLight    = NetflixLightGray.copy(alpha = 0.12f)
-val onSecondaryContainerLight  = NetflixDarkGray
+// Light Theme Colors
+val primaryLight = NetflixRed
+val onPrimaryLight = NetflixWhite
+val primaryContainerLight = NetflixRed.copy(alpha = 0.12f)
+val onPrimaryContainerLight = NetflixDarkRed
 
-val backgroundLight            = NetflixWhite
-val onBackgroundLight          = NetflixDarkGray
-val surfaceLight               = NetflixWhite
-val onSurfaceLight             = NetflixDarkGray
+val secondaryLight = NetflixLightGray
+val onSecondaryLight = NetflixWhite
+val secondaryContainerLight = NetflixLightGray.copy(alpha = 0.12f)
+val onSecondaryContainerLight = NetflixDarkGray
 
-val errorLight                 = NetflixRed
-val onErrorLight               = NetflixWhite
+val backgroundLight = NetflixLightBackground
+val onBackgroundLight = NetflixDarkGray
+val surfaceLight = NetflixWhite
+val onSurfaceLight = NetflixDarkGray
 
-val outlineLight               = NetflixDarkGray
-val scrimLight                 = Color(0x80000000) // 50% black
+val errorLight = NetflixRed
+val onErrorLight = NetflixWhite
 
-// Dark Theme
-val primaryDark                = NetflixRed
-val onPrimaryDark              = NetflixDarkGray
-val primaryContainerDark       = NetflixRed.copy(alpha = 0.24f)
-val onPrimaryContainerDark     = NetflixRed
+val outlineLight = NetflixMediumGray
+val scrimLight = Color(0x80000000)
 
-val secondaryDark              = NetflixLightGray
-val onSecondaryDark            = NetflixWhite
-val secondaryContainerDark     = NetflixLightGray.copy(alpha = 0.24f)
-val onSecondaryContainerDark   = NetflixDarkGray
+// Dark Theme Colors
+val primaryDark = NetflixRed
+val onPrimaryDark = NetflixWhite
+val primaryContainerDark = NetflixRed.copy(alpha = 0.24f)
+val onPrimaryContainerDark = NetflixRed
 
-// Passez ici en vrai noir
-val backgroundDark             = Color(0xFF000000)
-val onBackgroundDark           = NetflixWhite
-// Idem si vous voulez que vos surfaces soient noires
-val surfaceDark                = Color(0xFF000000)
-val onSurfaceDark              = NetflixWhite
+val secondaryDark = NetflixLightGray
+val onSecondaryDark = NetflixWhite
+val secondaryContainerDark = NetflixLightGray.copy(alpha = 0.24f)
+val onSecondaryContainerDark = NetflixLightGray
 
-val errorDark                  = NetflixRed
-val onErrorDark                = NetflixDarkGray
+val backgroundDark = NetflixBlack
+val onBackgroundDark = NetflixWhite
+val surfaceDark = NetflixDarkGray
+val onSurfaceDark = NetflixWhite
 
-val outlineDark                = NetflixWhite.copy(alpha = 0.5f)
-val scrimDark                  = Color(0x80000000) // 50% black
+val errorDark = NetflixRed
+val onErrorDark = NetflixWhite
+
+val outlineDark = NetflixLightGray.copy(alpha = 0.5f)
+val scrimDark = Color(0x80000000)
